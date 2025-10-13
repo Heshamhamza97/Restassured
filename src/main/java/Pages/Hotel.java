@@ -58,11 +58,11 @@ public class Hotel extends WebSocketClient {
     public void sendRegisterAndSearch() {
         try {
             String registerMsg = """
-                {"arguments":["6cef850a-9b9b-46f6-b6be-1f81757ec2c1"],"invocationId":"0","target":"RegisterConnection","type":1}\u001e
+                {"arguments":["6cef850a-9b9b-46f6-b6be-1f81757ec2c3"],"invocationId":"0","target":"RegisterConnection","type":1}\u001e
             """;
 
             String searchMsg = """
-                {"arguments":["6cef850a-9b9b-46f6-b6be-1f81757ec2c1",{
+                {"arguments":["6cef850a-9b9b-46f6-b6be-1f81757ec2c3",{
                     "checkIn":"2025-10-14",
                     "checkOut":"2025-10-20",
                     "code":"417",
@@ -78,7 +78,9 @@ public class Hotel extends WebSocketClient {
                     "env":"dev"
                 }],"invocationId":"1","target":"SearchHotels","type":1}\u001e
             """;
-
+            String keepAlive = "{\"type\":6}\u001e";
+            // Send keep-alive first
+            this.send(keepAlive);
             // Send both
             this.send(registerMsg);
             Thread.sleep(1000);
