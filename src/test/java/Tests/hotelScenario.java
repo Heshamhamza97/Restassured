@@ -20,7 +20,6 @@ public class hotelScenario {
                 token,
                 accessToken
         );
-
         Hotel client = new Hotel(new URI(wsUrl));
 
         client.connectBlocking();
@@ -28,8 +27,12 @@ public class hotelScenario {
         client.sendRegisterAndSearch();
 
         Thread.sleep(30000);
-
         client.close();
 
+        client.showHotelRooms();
+
+        client.prebookHotel();
+
+        client.intiateBooking();
     }
 }
