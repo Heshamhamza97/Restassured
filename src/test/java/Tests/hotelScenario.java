@@ -30,9 +30,9 @@ public class hotelScenario {
         client.close();
 
         client.showHotelRooms();
-
+        Thread.sleep(1000);
         client.prebookHotel();
-
+        Thread.sleep(1000);
         client.intiateBooking();
     }
 }

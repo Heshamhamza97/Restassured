@@ -25,9 +25,12 @@ public class Hotel extends WebSocketClient {
     private String passengers = null;
     private String connectionId;
     private String bookingCode;
+    private String PrebookingCode;
+    public Response showHotelRoomsResponse;
     public Hotel(URI serverUri) {
         super(serverUri);
     }
+
 
     @Override
     public void onOpen(ServerHandshake handshake) {
@@ -56,33 +59,43 @@ public class Hotel extends WebSocketClient {
         }
         if (message.contains("\"target\":\"ReceiveFirtPageHotelResult\"")) {
             try {
-                // Step 1: Parse outer message
                 JSONObject outer = new JSONObject(message);
-                // Step 2: Extract arguments[0] (stringified JSON)
                 String innerJson = outer.getJSONArray("arguments").getString(0);
-                // Step 3: Parse the inner JSON string
                 JSONObject inner = new JSONObject(innerJson);
 
-                // Step 4: Get first hotel result ID
                 JSONArray hotelResults = inner.getJSONArray("hotelResults");
-                String firstHotelId = hotelResults.getJSONObject(0).getString("id");
-                JSONObject hotel = hotelResults.getJSONObject(0);
-                JSONObject hotelInfo = hotel.getJSONObject("hotel");
-                String CheckInDate = hotelInfo.getString("checkInTime");
-                String CheckOutDate = hotelInfo.getString("checkOutTime");
+                JSONObject firstHotel = hotelResults.getJSONObject(0);
 
-                JSONArray roomResults = hotel.getJSONArray("rooms");
-                int adults = roomResults.getJSONObject(0).getInt("adults");
-                int children = roomResults.getJSONObject(0).getInt("children");
-               bookingCode = inner.getJSONArray("hotelResults")
-                        .getJSONObject(0)
-                        .getJSONArray("rooms")
-                        .getJSONObject(0)
-                        .getString("bookingCode");
-               latestHotelId = firstHotelId;
-                checkIn = CheckInDate;
-                checkOut = CheckOutDate;
-                passengers = adults + "-" + children;
+                // Only proceed if "rooms" exist and contain "bookingCode"
+                if (firstHotel.has("rooms")) {
+                    JSONArray rooms = firstHotel.getJSONArray("rooms");
+
+                    for (int i = 0; i < rooms.length(); i++) {
+                        JSONObject room = rooms.getJSONObject(i);
+
+                        // Proceed only if bookingCode is available
+                        if (room.has("bookingCode") && !room.isNull("bookingCode")) {
+                            bookingCode = room.getString("bookingCode");
+
+                            // Extract other info only when bookingCode exists
+                            String firstHotelId = firstHotel.getString("id");
+                            latestHotelId = firstHotelId;
+
+                            JSONObject hotelInfo = firstHotel.getJSONObject("hotel");
+                            checkIn = hotelInfo.optString("checkInTime", "");
+                            checkOut = hotelInfo.optString("checkOutTime", "");
+
+                            int adults = room.optInt("adults", 1);
+                            int children = room.optInt("children", 0);
+                            passengers = adults + "-" + children;
+
+                            System.out.println("✅ Found valid booking code: " + bookingCode);
+                            break; // Stop once we find a valid one
+                        }
+                    }
+                } else {
+                    System.out.println("⚠️ No rooms found in message yet.");
+                }
 
             } catch (Exception e) {
                 System.out.println("⚠️ Failed to parse hotel result message:");
@@ -143,6 +156,7 @@ public class Hotel extends WebSocketClient {
         RestAssured.baseURI = sharedData.getBaseUri();
         nationality="70";
         String hotelId = latestHotelId;
+        System.out.println("**********************" + hotelId);
         Response response = given()
                 .relaxedHTTPSValidation()
                 .basePath("/api/Hotel/HotelResultDetails/"+connectionId+"/"+hotelId+"/")
@@ -166,18 +180,22 @@ public class Hotel extends WebSocketClient {
         System.out.println("Status Code: " + response.getStatusCode());
         System.out.println("cache" + connectionId);
         response.prettyPrint();
+        showHotelRoomsResponse = response;
     }
     public void prebookHotel() throws IOException, InterruptedException {
         RestAssured.baseURI = sharedData.getBaseUri();
         nationality="70";
+        List<String> bookingCodes = showHotelRoomsResponse.getBody().jsonPath().getList("rooms.bookingCode");
+        String firstBookingCode = bookingCodes.get(0);
+        System.out.println(firstBookingCode);
         Response response = given()
                 .relaxedHTTPSValidation()
                 .basePath("/api/Hotel/PreBook")
                 .header("Content-Type", "application/json")
                 .header("Accept", "application/json")
                 .body("{"
-                        + "\"bookingCode\":\"" + bookingCode + "\","
-                        + "\"bookingCodes\":[\"" + bookingCode + "\"],"
+                        + "\"bookingCode\":\"" + firstBookingCode + "\","
+                        + "\"bookingCodes\":[\"" + firstBookingCode + "\"],"
                         + "\"cacheKey\":\"" + connectionId + "\","
                         + "\"checkIn\":\"" + checkIn + "\","
                         + "\"checkOut\":\"" + checkOut + "\","
@@ -198,6 +216,8 @@ public class Hotel extends WebSocketClient {
                 .response();
         System.out.println("Status Code: " + response.getStatusCode());
         response.prettyPrint();
+        Response PrebookResponse = response;
+        PrebookingCode = PrebookResponse.getBody().jsonPath().getString("data.bookingCode");
     }
     public void intiateBooking() throws IOException, InterruptedException {
         RestAssured.baseURI = sharedData.getBaseUri();
@@ -208,9 +228,9 @@ public class Hotel extends WebSocketClient {
         JSONObject passenger = new JSONObject();
         passenger.put("passengerTypeId", 43482);
         passenger.put("passengerTitleId", 43479);
-        passenger.put("firstName", "Kimberly");
+        passenger.put("firstName", "Hesham");
         passenger.put("lastName", "test");
-        passenger.put("dateOfBirth", "2008-07-02");
+        passenger.put("dateOfBirth", "2010-07-02");
         passenger.put("roomNumber", 1);
 
         // --- Wrap passengers into rooms array ---
@@ -225,7 +245,7 @@ public class Hotel extends WebSocketClient {
         body.put("phone", "1030716233");
         body.put("phoneCodeId", 70);
         body.put("cacheKey", connectionId);
-        body.put("bookingCode", bookingCode);
+        body.put("bookingCode", PrebookingCode);
         body.put("checkIn", checkIn);
         body.put("checkOut", checkOut);
         body.put("currencyId", 43497);
@@ -251,8 +271,11 @@ public class Hotel extends WebSocketClient {
         body.put("roomPassengers", "1-0");
         body.put("passengers", passengersArray);
         body.put("rateConditoins", new JSONArray());
-        body.put("source", "mobile");
         // --- Send POST request ---
+        System.out.println("Booking code"+PrebookingCode);
+        System.out.println("cache" + connectionId);
+        System.out.println("######HotelId"+latestHotelId);
+        System.out.println("request body"+body.toString());
         Response response = given()
                 .relaxedHTTPSValidation()
                 .basePath("/api/MobileHotels/BookingRequest") // Replace with your correct endpoint
