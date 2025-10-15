@@ -1,62 +1,44 @@
 package Tests;
 
 import Base.searchClass;
-import Pages.Hotel;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import Pages.*;
+import Pages.hotelRequests.HotelBookingRequest;
+import Pages.hotelRequests.HotelPreBook;
+import Pages.hotelRequests.HotelRoomDetails;
+import Pages.hotelRequests.HotelWaiter;
 import org.testng.annotations.Test;
 
 import java.net.URI;
 
+import static Pages.hotelRequests.HotelWaiter.waitForHotelRoomsReady;
+
 public class hotelScenario {
-
-    private Hotel client;
-
-    @BeforeClass
-    public void setup() throws Exception {
-
-        // Negotiate connection token
+    @Test
+    public void hotelBookingFlow() throws Exception {
+        HotelSharedData data = new HotelSharedData();
         var response = searchClass.negotiate(1);
         var token = response.jsonPath().getString("connectionToken");
 
-        // Build WebSocket URL
-        String accessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Imhlc2hhbWhhbXphMTk5N0BnbWFpbC5jb20iLCJuYW1laWQiOiIxODQwIiwiUm9sZUlkIjoiNDM1MDQiLCJuYmYiOjE3NjAzNDMyOTMsImV4cCI6MTc2MDQyOTY5MywiaXNzIjoiRGVwa2V5IiwiYXVkIjoiUFBsIn0.xOECYVGcTWB9EA3dN80xStWXFhnZchKvwCenV9IW5h0";
-        String wsUrl = String.format(
-                "wss://travelcore.techeffic.com/hubs/mobilehotelsearch?id=%s&access_token=%s",
-                token,
-                accessToken
-        );
+        // 1. Connect WebSocket and search
+        HotelSocket socket = new HotelSocket(new URI(
+                "wss://travelcore.techeffic.com/hubs/mobilehotelsearch?id=" +
+                        token + "&access_token=" +
+                        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9" +
+                        ".eyJlbWFpbCI6Imhlc2hhbWhhbXphMTk5N0BnbWFpbC5jb20iLCJuYW1laWQiOiIxODQwIiwiUm9sZUlkIjoiNDM1MDQiLCJuYmYiOjE3NjAzNDMyOTMsImV4cCI6MTc2MDQyOTY5MywiaXNzIjoiRGVwa2V5IiwiYXVkIjoiUFBsIn0.xOECYVGcTWB9EA3dN80xStWXFhnZchKvwCenV9IW5h0;"
+        ), data);
+        socket.connectBlocking();
+        socket.sendRegisterAndSearch();
+        Thread.sleep(20000); // wait for results
+        socket.close();
 
-        client = new Hotel(new URI(wsUrl));
+        // 2. Show hotel rooms
+        new HotelRoomDetails(data).execute();
+        waitForHotelRoomsReady(() -> new HotelRoomDetails(data).execute(), 30);
 
-        client.connectBlocking();
-        System.out.println("Connected to WebSocket successfully!");
+        // 3. Prebook
+        new HotelPreBook(data).execute();
 
-        client.sendRegisterAndSearch();
-        System.out.println("Search request sent via WebSocket...");
-    }
-
-    @Test
-    public void hotelBooking() throws Exception {
-        Thread.sleep(20000);
-        System.out.println("Waiting for 'ReceiveHotelSearchFinished' message...");
-
-        // Wait for hotel rooms to finish retrieve data
-        client.waitForHotelRoomsReady(client::showHotelRooms, 30);
-        System.out.println("Hotel rooms fetched successfully!");
-        // Select any available room
-        client.prebookHotel();
-        System.out.println("Room pre-booked successfully!");
-        // Initiate booking
-        client.initiateBooking();
-        System.out.println("Booking initiated successfully!");
-    }
-
-    @AfterClass(alwaysRun = true)
-    public void tearDown() {
-        if (client != null && client.isOpen()) {
-            client.close();
-            System.out.println("🔌 WebSocket connection closed.");
-        }
+        // 4. Final booking
+        new HotelBookingRequest(data).execute();
     }
 }
