@@ -22,7 +22,7 @@ public class Hotel extends WebSocketClient {
     private String checkIn;
     private String checkOut;
     private final String nationality = "70";
-    private String passengers = "1-0";
+    private String passengers = "4-1";
     private String connectionId;
     private String bookingCode;
     private String preBookingCode;
@@ -104,7 +104,7 @@ public class Hotel extends WebSocketClient {
             Thread.currentThread().interrupt();
         }
     }
-
+    // ------------------ Parsing Messages From JSON to String ------------------
     private void parseHotelResult(String message) {
         try {
             JSONObject outer = new JSONObject(message);
@@ -227,8 +227,8 @@ public class Hotel extends WebSocketClient {
                     .put("passengers", passengers)
                     .put("rooms", new JSONArray()
                             .put(new JSONObject()
-                                    .put("adults", 1)
-                                    .put("children", 0)
+                                    .put("adults", passengers.split("-")[0])
+                                    .put("children", passengers.split("-")[1])
                                     .put("childrenAges", new JSONArray())))
                     .put("payLater", false);
 
@@ -327,6 +327,5 @@ public class Hotel extends WebSocketClient {
 
         Assert.assertEquals(response.getStatusCode(), 200, "Expected status code 200 for final booking");
         Assert.assertNotNull(response.jsonPath().getString("data.bookingId"), "Booking ID is null");
-
     }
 }
