@@ -1,7 +1,3 @@
 <suite name="MyTestSuite">
-<!--    <test name="HotelTest">-->
-<!--        <classes>-->
-<!--            <class name="Tests.hotelScenario"/>-->
-<!--        </classes>-->
-<!--    </test>-->
+
 </suite>
