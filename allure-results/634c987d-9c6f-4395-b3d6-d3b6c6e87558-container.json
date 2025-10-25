@@ -1,0 +1,1 @@
+{"uuid":"634c987d-9c6f-4395-b3d6-d3b6c6e87558","name":"Tests.HotelScenario","children":["e4351dc3-08a8-42bb-9455-cb2b71e5c210"],"befores":[{"name":"setup","status":"passed","stage":"finished","description":"","steps":[],"attachments":[],"parameters":[],"start":1760807798038,"stop":1760807805881}],"afters":[],"start":1760807798014,"stop":1760807805989}
